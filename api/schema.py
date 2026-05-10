@@ -15,6 +15,8 @@ VALID_DOMAINS = {
     "meccatronico", "fieldbus", "safety", "auto",
 }
 
+VALID_MODELS = {"claude", "deepseek"}
+
 
 class SchemaRequest(BaseModel):
     conversation_id: int
@@ -26,6 +28,8 @@ class SchemaRequest(BaseModel):
 async def generate_schema(body: SchemaRequest, db: AsyncSession = Depends(get_db)):
     if body.domain not in VALID_DOMAINS:
         raise HTTPException(status_code=422, detail="Dominio non supportato")
+    if body.model not in VALID_MODELS:
+        raise HTTPException(status_code=422, detail="Modello non supportato")
     conv = await get_conversation(db, body.conversation_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversazione non trovata")

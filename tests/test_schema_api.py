@@ -82,9 +82,19 @@ async def test_generate_schema_invalid_domain(test_app):
 @pytest.mark.asyncio
 async def test_generate_schema_conversation_not_found(test_app):
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
-        with patch("api.schema.schema_service.generate_schema", new_callable=AsyncMock):
+        with patch("api.schema.schema_service.generate_schema", new_callable=AsyncMock) as mock_gen:
             r = await client.post("/api/schema/generate", json={"conversation_id": 9999, "domain": "auto"})
     assert r.status_code == 404
+    mock_gen.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_schema_invalid_model(test_app):
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
+        create = await client.post("/api/conversations", json={"title": "Test"})
+        conv_id = create.json()["id"]
+        r = await client.post("/api/schema/generate", json={"conversation_id": conv_id, "domain": "auto", "model": "gpt-99"})
+    assert r.status_code == 422
 
 
 @pytest.mark.asyncio
