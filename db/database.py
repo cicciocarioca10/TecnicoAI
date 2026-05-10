@@ -82,6 +82,17 @@ async def list_conversations(db: AsyncSession) -> list[Conversation]:
 
 
 async def delete_conversation(db: AsyncSession, conversation_id: int):
+    import os
+    schemas_result = await db.execute(
+        select(Schema).where(Schema.conversation_id == conversation_id)
+    )
+    for schema in schemas_result.scalars().all():
+        if schema.pdf_path and os.path.isfile(schema.pdf_path):
+            try:
+                os.unlink(schema.pdf_path)
+            except OSError:
+                pass
+    await db.execute(delete(Schema).where(Schema.conversation_id == conversation_id))
     await db.execute(delete(Message).where(Message.conversation_id == conversation_id))
     await db.execute(delete(Conversation).where(Conversation.id == conversation_id))
     await db.commit()

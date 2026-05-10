@@ -160,6 +160,10 @@ async def generate_schema(
     messages_for_ai = [{"role": m.role, "content": m.content} for m in messages]
 
     engine = detect_complexity(messages_for_ai)
+    # Some domains always require Graphviz (complex multi-section schemas)
+    GRAPHVIZ_DOMAINS = {"plc", "fieldbus", "safety", "meccatronico"}
+    if domain in GRAPHVIZ_DOMAINS:
+        engine = "graphviz"
     system_prompt = build_schema_system_prompt(engine, domain)
 
     trigger = messages_for_ai + [
@@ -176,15 +180,22 @@ async def generate_schema(
     with open(pdf_path, "wb") as f:
         f.write(pdf_bytes)
 
-    schema = await create_schema(
-        db,
-        conversation_id=conversation_id,
-        schema_type=domain,
-        engine=engine,
-        dot_code=content if engine == "graphviz" else None,
-        svg_content=content if engine == "svg" else None,
-        pdf_path=pdf_path,
-    )
+    try:
+        schema = await create_schema(
+            db,
+            conversation_id=conversation_id,
+            schema_type=domain,
+            engine=engine,
+            dot_code=content if engine == "graphviz" else None,
+            svg_content=content if engine == "svg" else None,
+            pdf_path=pdf_path,
+        )
+    except Exception:
+        try:
+            os.unlink(pdf_path)
+        except OSError:
+            pass
+        raise
 
     return {
         "schema_id": schema.id,

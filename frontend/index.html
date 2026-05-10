@@ -909,11 +909,15 @@ function sanitizeSvg(svg) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svg, 'image/svg+xml');
   if (doc.documentElement.nodeName === 'parsererror') return '';
-  doc.querySelectorAll('script').forEach(el => el.remove());
+  doc.querySelectorAll('script, foreignObject').forEach(el => el.remove());
+  doc.querySelectorAll('use').forEach(el => {
+    const href = el.getAttribute('href') || el.getAttribute('xlink:href') || '';
+    if (href.startsWith('http') || href.startsWith('javascript:')) el.remove();
+  });
   doc.querySelectorAll('*').forEach(el => {
     [...el.attributes].forEach(attr => {
       if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
-      if (attr.name === 'href' && /^javascript:/i.test(attr.value)) el.removeAttribute(attr.name);
+      if ((attr.name === 'href' || attr.name === 'xlink:href') && /^javascript:/i.test(attr.value)) el.removeAttribute(attr.name);
     });
   });
   return new XMLSerializer().serializeToString(doc.documentElement);

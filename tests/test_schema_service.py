@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from services.schema_service import (
     detect_complexity,
     build_schema_system_prompt,
@@ -148,3 +148,53 @@ def test_extract_dot_no_closing_brace():
     raw = "digraph schema { A -> B"
     result = _extract_dot(raw)
     assert result == raw.strip()
+
+
+@pytest.mark.asyncio
+async def test_generate_schema_svg_flow():
+    from services.schema_service import generate_schema
+    from unittest.mock import MagicMock, AsyncMock
+
+    mock_db = MagicMock()
+    mock_msg = MagicMock()
+    mock_msg.role = "user"
+    mock_msg.content = "Come collegare un interruttore?"
+    mock_schema = MagicMock()
+    mock_schema.id = 42
+
+    with patch("db.database.get_messages", new_callable=AsyncMock, return_value=[mock_msg]):
+        with patch("services.schema_service.send_message", new_callable=AsyncMock, return_value="<svg viewBox='0 0 1123 794'><rect/></svg>"):
+            with patch("services.schema_service.render_to_pdf", return_value=b"%PDF"):
+                with patch("db.database.create_schema", new_callable=AsyncMock, return_value=mock_schema):
+                    with patch("builtins.open", MagicMock()):
+                        with patch("os.makedirs"):
+                            result = await generate_schema(1, mock_db, domain="auto", model="claude")
+
+    assert result["schema_id"] == 42
+    assert result["engine"] == "svg"
+    assert result["pdf_url"] == "/api/schema/pdf/42"
+    assert "<svg" in result["content"]
+
+
+@pytest.mark.asyncio
+async def test_generate_schema_graphviz_domain_override():
+    from services.schema_service import generate_schema
+    from unittest.mock import MagicMock, AsyncMock
+
+    mock_db = MagicMock()
+    mock_msg = MagicMock()
+    mock_msg.role = "user"
+    mock_msg.content = "Crea un circuito di sicurezza."  # no keywords -> normally svg
+    mock_schema = MagicMock()
+    mock_schema.id = 5
+
+    with patch("db.database.get_messages", new_callable=AsyncMock, return_value=[mock_msg]):
+        with patch("services.schema_service.send_message", new_callable=AsyncMock, return_value="digraph schema { A -> B }"):
+            with patch("services.schema_service.render_to_pdf", return_value=b"%PDF"):
+                with patch("db.database.create_schema", new_callable=AsyncMock, return_value=mock_schema):
+                    with patch("builtins.open", MagicMock()):
+                        with patch("os.makedirs"):
+                            result = await generate_schema(1, mock_db, domain="safety", model="claude")
+
+    assert result["engine"] == "graphviz"  # forced by safety domain
+    assert result["schema_id"] == 5
