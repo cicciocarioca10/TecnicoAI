@@ -40,6 +40,19 @@ class Message(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class Schema(Base):
+    __tablename__ = "schemas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"))
+    schema_type = Column(String(50), nullable=False, default="auto")
+    engine = Column(String(20), nullable=False)
+    dot_code = Column(Text, nullable=True)
+    svg_content = Column(Text, nullable=True)
+    pdf_path = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -105,3 +118,31 @@ async def get_messages(db: AsyncSession, conversation_id: int) -> list[Message]:
         .order_by(Message.created_at)
     )
     return list(result.scalars().all())
+
+
+async def create_schema(
+    db: AsyncSession,
+    conversation_id: int,
+    schema_type: str,
+    engine: str,
+    dot_code: Optional[str] = None,
+    svg_content: Optional[str] = None,
+    pdf_path: Optional[str] = None,
+) -> Schema:
+    schema = Schema(
+        conversation_id=conversation_id,
+        schema_type=schema_type,
+        engine=engine,
+        dot_code=dot_code,
+        svg_content=svg_content,
+        pdf_path=pdf_path,
+    )
+    db.add(schema)
+    await db.commit()
+    await db.refresh(schema)
+    return schema
+
+
+async def get_schema(db: AsyncSession, schema_id: int) -> Optional[Schema]:
+    result = await db.execute(select(Schema).where(Schema.id == schema_id))
+    return result.scalar_one_or_none()
