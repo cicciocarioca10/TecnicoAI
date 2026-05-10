@@ -124,3 +124,27 @@ def test_render_to_pdf_dispatches_graphviz():
 def test_render_to_pdf_unknown_engine():
     with pytest.raises(ValueError, match="Engine non supportato"):
         render_to_pdf("content", "unknown")
+
+
+def test_detect_complexity_empty_messages():
+    assert detect_complexity([]) == "svg"
+
+
+def test_detect_complexity_ignores_assistant_messages():
+    messages = [
+        {"role": "user", "content": "Come collegare un interruttore?"},
+        {"role": "assistant", "content": "Risposta con menzione di PLC e robot per confronto."},
+    ]
+    assert detect_complexity(messages) == "svg"
+
+
+def test_extract_svg_no_closing_tag():
+    raw = "Ecco uno schema: <svg viewBox='0 0 100 100'><rect/>"
+    result = _extract_svg(raw)
+    assert result == raw.strip()
+
+
+def test_extract_dot_no_closing_brace():
+    raw = "digraph schema { A -> B"
+    result = _extract_dot(raw)
+    assert result == raw.strip()

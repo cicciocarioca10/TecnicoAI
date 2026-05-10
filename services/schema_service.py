@@ -2,7 +2,6 @@ import asyncio
 import os
 import tempfile
 import uuid
-from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +10,7 @@ from services.ai_service import send_message
 COMPLEXITY_KEYWORDS = [
     "plc", "inverter", "servo", "robot", "magazzino", "fieldbus", "mcc",
     "quadro", "automazione", "asse", "encoder", "variatore", "safety",
-    "sil", "pl", "profibus", "profinet", "ethercat", "scada", "hmi",
+    "sil", "pld", "profibus", "profinet", "ethercat", "scada", "hmi",
     "meccatronico", "rack", "pneumatico", "idraulico",
 ]
 
@@ -89,6 +88,8 @@ DOMAIN_PROMPTS: dict[str, str] = {
 def detect_complexity(messages: list[dict]) -> str:
     parts = []
     for m in messages:
+        if m.get("role") != "user":
+            continue
         c = m.get("content", "")
         if isinstance(c, str):
             parts.append(c)
@@ -109,10 +110,12 @@ def build_schema_system_prompt(engine: str, domain: str) -> str:
 
 def _extract_svg(content: str) -> str:
     start = content.find("<svg")
-    end = content.rfind("</svg>")
-    if start != -1 and end != -1:
-        return content[start:end + 6]
-    return content.strip()
+    if start == -1:
+        return content.strip()
+    end = content.find("</svg>", start)
+    if end == -1:
+        return content.strip()
+    return content[start:end + 6]
 
 
 def _extract_dot(content: str) -> str:
