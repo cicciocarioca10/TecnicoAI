@@ -1,0 +1,2 @@
+[phases.setup]
+nixPkgs = ["graphviz", "cairo", "pango", "libffi", "glib"]

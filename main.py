@@ -11,11 +11,13 @@ load_dotenv()
 from db.database import init_db
 from api.chat import router as chat_router
 from api.history import router as history_router
+from api.schema import router as schema_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs("uploads", exist_ok=True)
+    os.makedirs("schemas", exist_ok=True)
     await init_db()
     yield
 
@@ -31,6 +33,7 @@ app.add_middleware(
 
 app.include_router(chat_router, prefix="/api")
 app.include_router(history_router, prefix="/api")
+app.include_router(schema_router, prefix="/api")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
