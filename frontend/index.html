@@ -348,6 +348,173 @@
       border-radius: 8px;
       align-self: center;
     }
+    /* ── SCHEMA BUTTON ── */
+    .btn-schema {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .btn-schema:hover { background: var(--border); color: var(--text); }
+
+    /* ── DOMAIN MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 30;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 360px;
+      max-width: 90vw;
+    }
+    .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .domain-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .btn-domain {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 8px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .btn-domain:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-domain.selected { border-color: var(--accent); background: rgba(245,158,11,0.15); color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-generate {
+      background: var(--accent);
+      border: none;
+      color: #000;
+      padding: 8px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── SCHEMA VIEWER PANEL ── */
+    .schema-panel {
+      position: fixed;
+      top: 0; right: 0;
+      width: min(680px, 100vw);
+      height: 100vh;
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      z-index: 25;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .schema-panel.open { transform: translateX(0); }
+    .schema-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .schema-panel-title { font-weight: 600; font-size: 15px; }
+    .schema-complexity-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+    .badge-svg { background: rgba(46,125,50,0.2); color: #66bb6a; }
+    .badge-graphviz { background: rgba(30,136,229,0.2); color: #42a5f5; }
+    .schema-panel-actions {
+      display: flex; gap: 6px;
+      align-items: center;
+    }
+    .btn-panel-icon {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .btn-panel-icon:hover { color: var(--text); background: var(--border); }
+    .schema-panel-close {
+      background: none; border: none;
+      color: var(--text-muted);
+      cursor: pointer; font-size: 20px; line-height: 1;
+      padding: 4px;
+    }
+    .schema-content {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+    }
+    .schema-svg-wrap {
+      width: 100%;
+      overflow: auto;
+      background: white;
+      border-radius: 8px;
+    }
+    .schema-svg-wrap svg {
+      width: 100%;
+      height: auto;
+    }
+    .schema-pdf-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 8px;
+    }
+    .schema-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--text-muted);
+      font-size: 14px;
+      gap: 10px;
+    }
+    .schema-error {
+      color: var(--error);
+      font-size: 13px;
+      padding: 16px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -363,6 +530,46 @@
     <button class="btn-icon" onclick="openSidebar()" title="Storico conversazioni">☰</button>
   </div>
 </header>
+
+<!-- Domain Selector Modal -->
+<div class="modal-overlay" id="domain-modal">
+  <div class="modal">
+    <h3>Genera Schema Tecnico</h3>
+    <p>Seleziona il tipo di schema da generare in base alla conversazione:</p>
+    <div class="domain-grid">
+      <button class="btn-domain selected" data-domain="auto" onclick="selectDomain(this)">🤖 Auto</button>
+      <button class="btn-domain" data-domain="elettrico" onclick="selectDomain(this)">⚡ Elettrico</button>
+      <button class="btn-domain" data-domain="plc" onclick="selectDomain(this)">🔧 PLC / Controllo</button>
+      <button class="btn-domain" data-domain="pneumatico" onclick="selectDomain(this)">💨 Pneumatico</button>
+      <button class="btn-domain" data-domain="idraulico" onclick="selectDomain(this)">💧 Idraulico</button>
+      <button class="btn-domain" data-domain="meccatronico" onclick="selectDomain(this)">⚙️ Meccatronico</button>
+      <button class="btn-domain" data-domain="fieldbus" onclick="selectDomain(this)">🌐 Fieldbus</button>
+      <button class="btn-domain" data-domain="safety" onclick="selectDomain(this)">🛡️ Safety</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDomainModal()">Annulla</button>
+      <button class="btn-generate" id="btn-generate-schema" onclick="generateSchema()">Genera Schema</button>
+    </div>
+  </div>
+</div>
+
+<!-- Schema Viewer Panel -->
+<div class="schema-panel" id="schema-panel">
+  <div class="schema-panel-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="schema-panel-title">Schema Tecnico</span>
+      <span class="schema-complexity-badge" id="schema-badge"></span>
+    </div>
+    <div class="schema-panel-actions">
+      <button class="btn-panel-icon" id="btn-download-pdf" onclick="downloadSchemaPdf()" title="Scarica PDF">📄 PDF</button>
+      <button class="btn-panel-icon" id="btn-copy-dot" onclick="copyDotCode()" title="Copia codice DOT" style="display:none">📋 DOT</button>
+      <button class="schema-panel-close" onclick="closeSchemaPanel()">✕</button>
+    </div>
+  </div>
+  <div class="schema-content" id="schema-content">
+    <div class="schema-loading">Generazione schema in corso...</div>
+  </div>
+</div>
 
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 <div class="sidebar" id="sidebar">
@@ -384,6 +591,7 @@
     <div class="input-row">
       <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleImageSelect(event)">
       <button class="btn-attach" onclick="document.getElementById('file-input').click()" title="Allega foto">📎</button>
+      <button class="btn-schema" onclick="openDomainModal()" title="Genera schema tecnico">📐</button>
       <textarea
         id="message-input"
         placeholder="Scrivi un messaggio tecnico..."
@@ -402,6 +610,10 @@ const BACKEND_URL = 'http://localhost:8000';
 let currentConvId = null;
 let attachedImage = null;
 let isSending = false;
+let selectedDomain = 'auto';
+let currentSchemaId = null;
+let currentDotCode = null;
+let currentPdfUrl = null;
 
 // ─── STARTUP ───────────────────────────────────────────────────────────────
 
@@ -686,6 +898,98 @@ async function exportConversation() {
     a.click();
     URL.revokeObjectURL(url);
   } catch (_) {}
+}
+
+// ─── SCHEMA ────────────────────────────────────────────────────────────────
+
+function openDomainModal() {
+  if (!currentConvId) {
+    alert('Apri o crea una conversazione prima di generare uno schema.');
+    return;
+  }
+  document.getElementById('domain-modal').classList.add('open');
+}
+
+function closeDomainModal() {
+  document.getElementById('domain-modal').classList.remove('open');
+}
+
+function selectDomain(btn) {
+  document.querySelectorAll('.btn-domain').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedDomain = btn.dataset.domain;
+}
+
+function closeSchemaPanel() {
+  document.getElementById('schema-panel').classList.remove('open');
+}
+
+function downloadSchemaPdf() {
+  if (!currentPdfUrl) return;
+  const a = document.createElement('a');
+  a.href = `${BACKEND_URL}${currentPdfUrl}`;
+  a.download = `schema-${currentSchemaId}.pdf`;
+  a.click();
+}
+
+function copyDotCode() {
+  if (!currentDotCode) return;
+  navigator.clipboard.writeText(currentDotCode).then(() => {
+    const btn = document.getElementById('btn-copy-dot');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copiato';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+async function generateSchema() {
+  const btn = document.getElementById('btn-generate-schema');
+  btn.disabled = true;
+  btn.textContent = 'Generazione...';
+  closeDomainModal();
+
+  const panel = document.getElementById('schema-panel');
+  const content = document.getElementById('schema-content');
+  content.innerHTML = '<div class="schema-loading"><span>⏳</span> Generazione schema in corso...</div>';
+  panel.classList.add('open');
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/schema/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: currentConvId, domain: selectedDomain, model: 'claude' }),
+    });
+    if (!res.ok) {
+      content.innerHTML = '<div class="schema-error">Errore nella generazione dello schema. Riprova.</div>';
+      return;
+    }
+    const data = await res.json();
+    currentSchemaId = data.schema_id;
+    currentPdfUrl = data.pdf_url;
+    currentDotCode = data.engine === 'graphviz' ? data.content : null;
+
+    const badge = document.getElementById('schema-badge');
+    if (data.engine === 'graphviz') {
+      badge.textContent = 'Schema industriale (Graphviz)';
+      badge.className = 'schema-complexity-badge badge-graphviz';
+      document.getElementById('btn-copy-dot').style.display = '';
+      content.innerHTML = `<iframe
+        class="schema-pdf-frame"
+        src="${BACKEND_URL}${data.pdf_url}"
+        title="Schema PDF">
+      </iframe>`;
+    } else {
+      badge.textContent = 'Schema semplice (SVG)';
+      badge.className = 'schema-complexity-badge badge-svg';
+      document.getElementById('btn-copy-dot').style.display = 'none';
+      content.innerHTML = `<div class="schema-svg-wrap">${data.content}</div>`;
+    }
+  } catch (_) {
+    content.innerHTML = '<div class="schema-error">Connessione persa. Verifica il backend.</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Genera Schema';
+  }
 }
 
 // ─── UTILS ─────────────────────────────────────────────────────────────────
