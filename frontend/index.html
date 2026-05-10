@@ -481,8 +481,10 @@
     }
     .schema-content {
       flex: 1;
-      overflow: auto;
+      overflow: hidden;
       padding: 12px;
+      display: flex;
+      flex-direction: column;
     }
     .schema-svg-wrap {
       width: 100%;
@@ -496,9 +498,10 @@
     }
     .schema-pdf-frame {
       width: 100%;
-      height: 100%;
+      flex: 1;
       border: none;
       border-radius: 8px;
+      min-height: 0;
     }
     .schema-loading {
       display: flex;
@@ -532,8 +535,8 @@
 </header>
 
 <!-- Domain Selector Modal -->
-<div class="modal-overlay" id="domain-modal">
-  <div class="modal">
+<div class="modal-overlay" id="domain-modal" onclick="closeDomainModal()">
+  <div class="modal" onclick="event.stopPropagation()">
     <h3>Genera Schema Tecnico</h3>
     <p>Seleziona il tipo di schema da generare in base alla conversazione:</p>
     <div class="domain-grid">
@@ -902,11 +905,29 @@ async function exportConversation() {
 
 // ─── SCHEMA ────────────────────────────────────────────────────────────────
 
+function sanitizeSvg(svg) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svg, 'image/svg+xml');
+  if (doc.documentElement.nodeName === 'parsererror') return '';
+  doc.querySelectorAll('script').forEach(el => el.remove());
+  doc.querySelectorAll('*').forEach(el => {
+    [...el.attributes].forEach(attr => {
+      if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+      if (attr.name === 'href' && /^javascript:/i.test(attr.value)) el.removeAttribute(attr.name);
+    });
+  });
+  return new XMLSerializer().serializeToString(doc.documentElement);
+}
+
 function openDomainModal() {
   if (!currentConvId) {
     alert('Apri o crea una conversazione prima di generare uno schema.');
     return;
   }
+  selectedDomain = 'auto';
+  document.querySelectorAll('.btn-domain').forEach(b => b.classList.remove('selected'));
+  const autoBtn = document.querySelector('.btn-domain[data-domain="auto"]');
+  if (autoBtn) autoBtn.classList.add('selected');
   document.getElementById('domain-modal').classList.add('open');
 }
 
@@ -973,16 +994,14 @@ async function generateSchema() {
       badge.textContent = 'Schema industriale (Graphviz)';
       badge.className = 'schema-complexity-badge badge-graphviz';
       document.getElementById('btn-copy-dot').style.display = '';
-      content.innerHTML = `<iframe
-        class="schema-pdf-frame"
-        src="${BACKEND_URL}${data.pdf_url}"
-        title="Schema PDF">
-      </iframe>`;
+      content.innerHTML = data.pdf_url
+        ? `<iframe class="schema-pdf-frame" src="${BACKEND_URL}${data.pdf_url}" title="Schema PDF"></iframe>`
+        : '<div class="schema-error">PDF non disponibile.</div>';
     } else {
       badge.textContent = 'Schema semplice (SVG)';
       badge.className = 'schema-complexity-badge badge-svg';
       document.getElementById('btn-copy-dot').style.display = 'none';
-      content.innerHTML = `<div class="schema-svg-wrap">${data.content}</div>`;
+      content.innerHTML = `<div class="schema-svg-wrap">${sanitizeSvg(data.content)}</div>`;
     }
   } catch (_) {
     content.innerHTML = '<div class="schema-error">Connessione persa. Verifica il backend.</div>';
