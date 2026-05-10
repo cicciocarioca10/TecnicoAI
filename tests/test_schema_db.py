@@ -1,12 +1,13 @@
 import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from db.database import Base, create_schema, get_schema
+from db.database import Base, create_conversation, create_schema, get_schema
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def db_session():
     engine = create_async_engine(TEST_DB_URL)
     async with engine.begin() as conn:
@@ -21,7 +22,6 @@ async def db_session():
 
 @pytest.mark.asyncio
 async def test_create_schema_svg(db_session):
-    from db.database import create_conversation
     conv = await create_conversation(db_session, "Test")
     schema = await create_schema(
         db_session,
@@ -38,7 +38,6 @@ async def test_create_schema_svg(db_session):
 
 @pytest.mark.asyncio
 async def test_create_schema_graphviz(db_session):
-    from db.database import create_conversation
     conv = await create_conversation(db_session, "Test")
     schema = await create_schema(
         db_session,
@@ -60,7 +59,6 @@ async def test_get_schema_returns_none_for_missing(db_session):
 
 @pytest.mark.asyncio
 async def test_get_schema_returns_created(db_session):
-    from db.database import create_conversation
     conv = await create_conversation(db_session, "Test")
     created = await create_schema(
         db_session,
