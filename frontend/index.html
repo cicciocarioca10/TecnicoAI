@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TecnicoAI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1117;
+      --bg2: #161922;
+      --bg3: #1e2130;
+      --accent: #f59e0b;
+      --accent-dark: #d97706;
+      --text: #e5e7eb;
+      --text-muted: #6b7280;
+      --border: #2d3148;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      height: 56px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .logo { font-size: 22px; }
+    .app-name { font-size: 16px; font-weight: 600; color: var(--accent); }
+    .header-right { display: flex; gap: 8px; align-items: center; }
+    .btn-icon {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      transition: background 0.15s;
+    }
+    .btn-icon:hover { background: var(--bg3); }
+    .btn-new {
+      background: var(--accent);
+      border: none;
+      color: #000;
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .btn-new:hover { background: var(--accent-dark); }
+    .btn-export {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    .btn-export:hover { background: var(--bg3); color: var(--text); }
+
+    /* ── SIDEBAR ── */
+    .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .sidebar-overlay.open { opacity: 1; pointer-events: all; }
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 280px;
+      height: 100vh;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      z-index: 21;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-header {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-title { font-weight: 600; font-size: 14px; }
+    .sidebar-close {
+      background: none; border: none;
+      color: var(--text-muted);
+      cursor: pointer; font-size: 18px; line-height: 1;
+    }
+    .conv-list { overflow-y: auto; flex: 1; padding: 8px; }
+    .conv-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 2px;
+      gap: 8px;
+    }
+    .conv-item:hover { background: var(--bg3); }
+    .conv-item.active { background: var(--bg3); border-left: 2px solid var(--accent); padding-left: 10px; }
+    .conv-info { flex: 1; min-width: 0; }
+    .conv-title {
+      font-size: 13px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .conv-date { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .conv-delete {
+      background: none; border: none;
+      color: var(--text-muted);
+      cursor: pointer; font-size: 18px;
+      padding: 2px 4px; line-height: 1;
+      flex-shrink: 0; border-radius: 4px;
+    }
+    .conv-delete:hover { color: var(--error); background: rgba(239,68,68,0.1); }
+    .conv-empty { padding: 16px; color: var(--text-muted); font-size: 13px; }
+
+    /* ── MAIN ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── CHAT AREA ── */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      text-align: center;
+      gap: 12px;
+      padding: 32px;
+    }
+    .empty-state .big-icon { font-size: 52px; }
+    .empty-state h2 { font-size: 22px; color: var(--text); font-weight: 600; }
+    .empty-state p { font-size: 14px; max-width: 300px; line-height: 1.6; }
+
+    /* ── MESSAGE BUBBLES ── */
+    .msg-wrapper { display: flex; flex-direction: column; }
+    .msg-wrapper.user { align-items: flex-end; }
+    .msg-wrapper.assistant { align-items: flex-start; }
+    .msg-bubble {
+      max-width: min(520px, 82vw);
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+    .msg-wrapper.user .msg-bubble {
+      background: var(--accent);
+      color: #000;
+      border-bottom-right-radius: 5px;
+    }
+    .msg-wrapper.assistant .msg-bubble {
+      background: var(--bg3);
+      color: var(--text);
+      border-bottom-left-radius: 5px;
+    }
+    .msg-image {
+      max-width: 220px; max-height: 220px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      display: block;
+    }
+    .msg-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Markdown inside AI bubble */
+    .msg-wrapper.assistant .msg-bubble p { margin: 4px 0; }
+    .msg-wrapper.assistant .msg-bubble strong { font-weight: 600; }
+    .msg-wrapper.assistant .msg-bubble em { font-style: italic; }
+    .msg-wrapper.assistant .msg-bubble code {
+      background: rgba(0,0,0,0.35);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12.5px;
+    }
+    .msg-wrapper.assistant .msg-bubble pre {
+      background: rgba(0,0,0,0.4);
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .msg-wrapper.assistant .msg-bubble pre code {
+      background: none; padding: 0;
+    }
+    .msg-wrapper.assistant .msg-bubble ul,
+    .msg-wrapper.assistant .msg-bubble ol {
+      padding-left: 20px; margin: 4px 0;
+    }
+    .msg-wrapper.assistant .msg-bubble li { margin: 3px 0; }
+
+    /* ── TYPING INDICATOR ── */
+    .typing-indicator { display: none; }
+    .typing-indicator.visible { display: flex; }
+    .typing-bubble {
+      background: var(--bg3);
+      padding: 12px 16px;
+      border-radius: 18px;
+      border-bottom-left-radius: 5px;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .typing-dot {
+      width: 7px; height: 7px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* ── INPUT AREA ── */
+    .input-area {
+      flex-shrink: 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 10px 16px 14px;
+    }
+    .image-preview-wrap {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .image-preview-wrap.visible { display: flex; }
+    .image-thumb {
+      width: 52px; height: 52px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .remove-image {
+      background: rgba(0,0,0,0.6);
+      border: none;
+      color: #fff;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .input-row { display: flex; align-items: flex-end; gap: 8px; }
+    #message-input {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      resize: none;
+      max-height: 100px;
+      overflow-y: auto;
+      line-height: 1.4;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #message-input:focus { border-color: var(--accent); }
+    #message-input::placeholder { color: var(--text-muted); }
+    .btn-attach, .btn-send {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .btn-attach {
+      background: var(--bg3);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-attach:hover { background: var(--border); color: var(--text); }
+    .btn-send { background: var(--accent); color: #000; }
+    .btn-send:hover { background: var(--accent-dark); }
+    .btn-send:disabled { background: var(--bg3); color: var(--text-muted); cursor: not-allowed; }
+    #file-input { display: none; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── ERROR TOAST ── */
+    .error-msg {
+      text-align: center;
+      color: var(--error);
+      font-size: 13px;
+      padding: 6px 12px;
+      background: rgba(239,68,68,0.1);
+      border-radius: 8px;
+      align-self: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <span class="logo">⚡</span>
+    <span class="app-name">TecnicoAI</span>
+  </div>
+  <div class="header-right">
+    <button class="btn-export" onclick="exportConversation()" title="Esporta chat">↓ Esporta</button>
+    <button class="btn-new" onclick="newConversation()">+ Nuova Chat</button>
+    <button class="btn-icon" onclick="openSidebar()" title="Storico conversazioni">☰</button>
+  </div>
+</header>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">Storico chat</span>
+    <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+  </div>
+  <div class="conv-list" id="conv-list"></div>
+</div>
+
+<div class="main">
+  <div class="chat-area" id="chat-area"></div>
+
+  <div class="input-area">
+    <div class="image-preview-wrap" id="image-preview-wrap">
+      <img class="image-thumb" id="image-thumb" src="" alt="preview">
+      <button class="remove-image" onclick="removeImage()" title="Rimuovi">✕</button>
+    </div>
+    <div class="input-row">
+      <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleImageSelect(event)">
+      <button class="btn-attach" onclick="document.getElementById('file-input').click()" title="Allega foto">📎</button>
+      <textarea
+        id="message-input"
+        placeholder="Scrivi un messaggio tecnico..."
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+      <button class="btn-send" id="btn-send" onclick="sendMessage()" title="Invia">▶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BACKEND_URL = 'http://localhost:8000';
+
+let currentConvId = null;
+let attachedImage = null;
+let isSending = false;
+
+// ─── STARTUP ───────────────────────────────────────────────────────────────
+
+async function init() {
+  const saved = parseInt(localStorage.getItem('currentConvId'));
+  await loadConversations();
+  if (saved) {
+    await selectConversation(saved, false);
+  } else {
+    showEmptyState();
+  }
+}
+
+// ─── SIDEBAR / CONVERSATIONS ───────────────────────────────────────────────
+
+async function loadConversations() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/conversations`);
+    const convs = await res.json();
+    renderConvList(convs);
+  } catch (_) {
+    document.getElementById('conv-list').innerHTML =
+      '<p class="conv-empty">Errore di connessione</p>';
+  }
+}
+
+function renderConvList(convs) {
+  const list = document.getElementById('conv-list');
+  if (!convs.length) {
+    list.innerHTML = '<p class="conv-empty">Nessuna conversazione</p>';
+    return;
+  }
+  list.innerHTML = convs.map(c => `
+    <div class="conv-item ${c.id === currentConvId ? 'active' : ''}"
+         onclick="selectConversation(${c.id}, true)">
+      <div class="conv-info">
+        <div class="conv-title">${esc(c.title)}</div>
+        <div class="conv-date">${fmtDate(c.updated_at)}</div>
+      </div>
+      <button class="conv-delete"
+              onclick="event.stopPropagation(); deleteConversation(${c.id})"
+              title="Elimina">×</button>
+    </div>
+  `).join('');
+}
+
+async function selectConversation(convId, closeSide) {
+  currentConvId = convId;
+  localStorage.setItem('currentConvId', convId);
+  if (closeSide) closeSidebar();
+  await loadConversations();
+  await loadMessages(convId);
+}
+
+async function newConversation() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/conversations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Nuova conversazione' }),
+    });
+    const conv = await res.json();
+    currentConvId = conv.id;
+    localStorage.setItem('currentConvId', conv.id);
+    await loadConversations();
+    showEmptyState();
+    document.getElementById('message-input').focus();
+  } catch (_) {}
+}
+
+async function deleteConversation(convId) {
+  try {
+    await fetch(`${BACKEND_URL}/api/conversations/${convId}`, { method: 'DELETE' });
+    if (convId === currentConvId) {
+      currentConvId = null;
+      localStorage.removeItem('currentConvId');
+      showEmptyState();
+    }
+    await loadConversations();
+  } catch (_) {}
+}
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+// ─── MESSAGES ──────────────────────────────────────────────────────────────
+
+async function loadMessages(convId) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/conversations/${convId}/messages`);
+    if (!res.ok) { showEmptyState(); return; }
+    const msgs = await res.json();
+    renderMessages(msgs);
+  } catch (_) { showEmptyState(); }
+}
+
+function renderMessages(msgs) {
+  const area = document.getElementById('chat-area');
+  area.innerHTML = '';
+  if (!msgs.length) { showEmptyState(); return; }
+  msgs.forEach(m => area.appendChild(makeMsgEl(m)));
+  area.appendChild(makeTypingEl());
+  scrollBottom();
+}
+
+function makeMsgEl(msg) {
+  const wrap = document.createElement('div');
+  wrap.className = `msg-wrapper ${msg.role}`;
+
+  if (msg.image_path) {
+    const img = document.createElement('img');
+    img.className = 'msg-image';
+    img.src = msg.image_path.startsWith('blob:')
+      ? msg.image_path
+      : `${BACKEND_URL}${msg.image_path}`;
+    img.alt = 'Immagine allegata';
+    img.onclick = () => window.open(img.src, '_blank');
+    wrap.appendChild(img);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  if (msg.role === 'assistant') {
+    bubble.innerHTML = md(msg.content);
+  } else {
+    bubble.textContent = msg.content;
+  }
+  wrap.appendChild(bubble);
+
+  if (msg.created_at) {
+    const t = document.createElement('div');
+    t.className = 'msg-time';
+    t.textContent = fmtDate(msg.created_at);
+    wrap.appendChild(t);
+  }
+  return wrap;
+}
+
+function makeTypingEl() {
+  const el = document.createElement('div');
+  el.className = 'typing-indicator';
+  el.id = 'typing-indicator';
+  el.innerHTML = `<div class="typing-bubble">
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+  </div>`;
+  return el;
+}
+
+function showEmptyState() {
+  document.getElementById('chat-area').innerHTML = `
+    <div class="empty-state">
+      <span class="big-icon">⚡</span>
+      <h2>TecnicoAI</h2>
+      <p>Assistente specializzato per tecnici elettricisti e meccanici.<br>
+         Inizia una nuova chat o seleziona una conversazione dal menu.</p>
+    </div>`;
+}
+
+// ─── SEND ──────────────────────────────────────────────────────────────────
+
+async function sendMessage() {
+  if (isSending) return;
+  const input = document.getElementById('message-input');
+  const text = input.value.trim();
+  if (!text && !attachedImage) return;
+
+  if (!currentConvId) {
+    await newConversation();
+    if (!currentConvId) return;
+  }
+
+  const area = document.getElementById('chat-area');
+  const emptyState = area.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  let typingEl = document.getElementById('typing-indicator');
+  if (!typingEl) {
+    typingEl = makeTypingEl();
+    area.appendChild(typingEl);
+  }
+
+  const userEl = makeMsgEl({
+    role: 'user',
+    content: text || '(immagine allegata)',
+    image_path: attachedImage ? URL.createObjectURL(attachedImage) : null,
+  });
+  area.insertBefore(userEl, typingEl);
+
+  input.value = '';
+  autoResize(input);
+  typingEl.classList.add('visible');
+  scrollBottom();
+
+  isSending = true;
+  document.getElementById('btn-send').disabled = true;
+  const imgToSend = attachedImage;
+  removeImage();
+
+  try {
+    let res;
+    if (imgToSend) {
+      const fd = new FormData();
+      fd.append('conversation_id', currentConvId);
+      fd.append('message', text || '(immagine allegata)');
+      fd.append('model', 'claude');
+      fd.append('image', imgToSend);
+      res = await fetch(`${BACKEND_URL}/api/chat/image`, { method: 'POST', body: fd });
+    } else {
+      res = await fetch(`${BACKEND_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: currentConvId, message: text, model: 'claude' }),
+      });
+    }
+
+    typingEl.classList.remove('visible');
+
+    if (!res.ok) {
+      appendError(area, typingEl, 'Errore dal server. Riprova più tardi.');
+      return;
+    }
+
+    const data = await res.json();
+    const aiEl = makeMsgEl({ role: 'assistant', content: data.reply, created_at: new Date().toISOString() });
+    area.insertBefore(aiEl, typingEl);
+    await loadConversations();
+    scrollBottom();
+  } catch (_) {
+    document.getElementById('typing-indicator')?.classList.remove('visible');
+    appendError(area, document.getElementById('typing-indicator'), 'Connessione persa. Verifica che il backend sia attivo.');
+  } finally {
+    isSending = false;
+    document.getElementById('btn-send').disabled = false;
+  }
+}
+
+function appendError(area, before, msg) {
+  const el = document.createElement('div');
+  el.className = 'error-msg';
+  el.textContent = msg;
+  if (before) area.insertBefore(el, before);
+  else area.appendChild(el);
+  scrollBottom();
+}
+
+// ─── IMAGE ─────────────────────────────────────────────────────────────────
+
+function handleImageSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  attachedImage = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('image-thumb').src = ev.target.result;
+    document.getElementById('image-preview-wrap').classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage() {
+  attachedImage = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('image-thumb').src = '';
+  document.getElementById('image-preview-wrap').classList.remove('visible');
+}
+
+// ─── EXPORT ────────────────────────────────────────────────────────────────
+
+async function exportConversation() {
+  if (!currentConvId) return;
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/conversations/${currentConvId}/messages`);
+    const msgs = await res.json();
+    if (!msgs.length) return;
+    const lines = msgs.map(m =>
+      `[${m.role.toUpperCase()}] ${fmtDate(m.created_at)}\n${m.content}`
+    );
+    const blob = new Blob([lines.join('\n\n---\n\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tecnicoai-chat-${currentConvId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (_) {}
+}
+
+// ─── UTILS ─────────────────────────────────────────────────────────────────
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function scrollBottom() {
+  const area = document.getElementById('chat-area');
+  setTimeout(() => { area.scrollTop = area.scrollHeight; }, 40);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z'));
+  if (isNaN(d)) return '';
+  const now = new Date();
+  const diff = Math.floor((now - d) / 86400000);
+  if (diff === 0) return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  if (diff === 1) return 'Ieri ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function md(text) {
+  // Escape first, then apply markdown
+  let t = text;
+  // Code blocks (preserve, replace later)
+  const blocks = [];
+  t = t.replace(/```[\s\S]*?```/g, m => {
+    blocks.push(m);
+    return `\x00CODE${blocks.length - 1}\x00`;
+  });
+  // Escape HTML in remaining text
+  t = t.split('\x00CODE').map((seg, i) => {
+    if (i === 0) return esc(seg);
+    const idx = seg.match(/^(\d+)\x00(.*)$/s);
+    if (!idx) return seg;
+    const block = blocks[parseInt(idx[1])];
+    const inner = block.replace(/^```\w*\n?/, '').replace(/```$/, '');
+    return `<pre><code>${esc(inner.trim())}</code></pre>${esc(idx[2])}`;
+  }).join('');
+  // Inline code
+  t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${esc(c)}</code>`);
+  // Bold / italic
+  t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  // Headers → bold
+  t = t.replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>');
+  // Lists
+  t = t.replace(/^[ \t]*[-*•] (.+)$/gm, '<li>$1</li>');
+  t = t.replace(/^[ \t]*\d+\. (.+)$/gm, '<li>$1</li>');
+  t = t.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+  // Paragraphs
+  t = t.replace(/\n{2,}/g, '</p><p>');
+  t = t.replace(/\n/g, '<br>');
+  return `<p>${t}</p>`;
+}
+
+init();
+</script>
+</body>
+</html>
