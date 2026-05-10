@@ -74,3 +74,65 @@ pytest tests/ -v
 ```
 
 37 test coprono le API REST, il servizio AI (mock) e il question engine.
+
+## Tipi di schema supportati
+
+Clicca il pulsante 📐 nella barra di input per generare uno schema tecnico.
+
+| Tipo | Dominio | Motore | Formato |
+|------|---------|--------|---------|
+| ⚡ Elettrico | `elettrico` | SVG / Graphviz | A4 / A3 |
+| 🔧 PLC/Controllo | `plc` | Graphviz | A3 PDF |
+| 💨 Pneumatico | `pneumatico` | SVG / Graphviz | A4 / A3 |
+| 💧 Idraulico | `idraulico` | SVG / Graphviz | A4 / A3 |
+| ⚙️ Meccatronico | `meccatronico` | Graphviz | A3 PDF |
+| 🌐 Fieldbus | `fieldbus` | Graphviz | A3 PDF |
+| 🛡️ Safety | `safety` | Graphviz | A3 PDF |
+| 🤖 Auto | `auto` | Automatico | - |
+
+**Come funziona:** TecnicoAI analizza la conversazione e sceglie automaticamente il motore di rendering:
+- **Schema semplice (SVG):** per impianti civili e automazioni con meno di 15 componenti
+- **Schema industriale (Graphviz):** per PLC, MCC, robotica, magazzini automatici e impianti complessi
+
+### Esempi di prompt per ogni dominio
+
+**Cella robotica pick & place:**
+```
+Ho una cella robotica pick&place con robot KUKA a 6 assi, due cilindri pneumatici per gripper,
+safety fence con scanner laser SICK, PLC Siemens S7-1500 in modalità PROFINET,
+inverter per nastro di alimentazione 400V 5.5kW. Crea lo schema.
+```
+
+**Magazzino automatico con trasportatori:**
+```
+Magazzino automatico con 3 trasportatori a rulli 400V, 2 sollevatori servo-motorizzati,
+PLC Allen-Bradley ControlLogix, rete EtherNet/IP, lettori barcode, sensori finecorsa
+induttivi, quadro MCC con 8 inverter Danfoss. Genera lo schema di automazione.
+```
+
+**Quadro MCC 400V con 8 motori:**
+```
+Quadro MCC 400V con 8 utenze motore da 1.5 a 22kW, interruttori motorizzati ABB,
+contattori con relè termici, 3 inverter per pompe variabili, misuratore di energia
+multimetro Schneider PM5100, PLC di supervisione con Modbus TCP. Schema elettrico.
+```
+
+**Circuito pneumatico:**
+```
+Impianto pneumatico per pressa industriale: compressore 10bar, serbatoio 200L,
+essiccatore, FRL, valvola proporzionale 5/2 Festo per cilindro principale 100x400mm,
+4 cilindri di bloccaggio 50x200mm con valvole 5/2 a solenoide, pressostati di controllo.
+```
+
+## Installazione dipendenze sistema (per rendering schemi)
+
+```bash
+# Linux / WSL2 (Ubuntu)
+sudo apt-get install -y graphviz libcairo2-dev libpango1.0-dev
+
+# macOS
+brew install graphviz cairo pango
+
+# Windows
+choco install graphviz
+```
