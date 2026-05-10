@@ -1,5 +1,7 @@
 import asyncio
 import os
+import re
+import subprocess
 import tempfile
 import uuid
 
@@ -126,6 +128,42 @@ def _extract_dot(content: str) -> str:
     return content.strip()
 
 
+def _sanitize_dot(dot_code: str) -> str:
+    def _clean_label(m: re.Match) -> str:
+        text = m.group(1)
+        text = re.sub(r'[^\x00-\x7F]', '', text)
+        text = re.sub(r'(?<!\\)"', r'\\"', text)
+        return f'"{text}"'
+
+    sanitized = re.sub(r'"((?:[^"\\]|\\.)*)"', _clean_label, dot_code)
+
+    lines = []
+    for line in sanitized.splitlines():
+        stripped = line.rstrip()
+        if stripped and not stripped.endswith(('{', '}', ';', ',')):
+            content = stripped.rstrip()
+            if re.search(r'\w\s*$', content):
+                stripped = content + ';'
+        lines.append(stripped)
+    return '\n'.join(lines)
+
+
+def _validate_dot(dot_code: str) -> tuple[bool, str]:
+    try:
+        result = subprocess.run(
+            ['dot', '-Tpdf', '-o', '/dev/null'],
+            input=dot_code,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return result.returncode == 0, result.stderr.strip()
+    except FileNotFoundError:
+        return True, ""
+    except subprocess.TimeoutExpired:
+        return False, "Timeout validazione DOT"
+
+
 def _render_svg_to_pdf(svg_content: str) -> bytes:
     import cairosvg  # lazy import — requires pip install cairosvg + libcairo2-dev
     return cairosvg.svg2pdf(bytestring=svg_content.encode())
@@ -171,7 +209,31 @@ async def generate_schema(
     ]
     raw = await send_message(trigger, system_prompt=system_prompt, model=model)
 
-    content = _extract_svg(raw) if engine == "svg" else _extract_dot(raw)
+    if engine == "svg":
+        content = _extract_svg(raw)
+    else:
+        content = _extract_dot(raw)
+        content = _sanitize_dot(content)
+        valid, error_msg = _validate_dot(content)
+        for _ in range(2):
+            if valid:
+                break
+            retry_messages = trigger + [
+                {"role": "assistant", "content": raw},
+                {"role": "user", "content": (
+                    f"Il codice DOT generato contiene errori di sintassi: {error_msg}. "
+                    "Rigeneralo correggendo gli errori. Fai attenzione a: "
+                    "- Virgolette nei label (usa \\\" o elimina caratteri speciali) "
+                    "- Parentesi graffe bilanciate "
+                    "- Punto e virgola mancanti "
+                    "- Caratteri speciali nei nomi nodi (usa solo a-z, 0-9, _) "
+                    "Restituisci SOLO il codice DOT valido."
+                )},
+            ]
+            raw = await send_message(retry_messages, system_prompt=system_prompt, model=model)
+            content = _sanitize_dot(_extract_dot(raw))
+            valid, error_msg = _validate_dot(content)
+
     pdf_bytes = await asyncio.to_thread(render_to_pdf, content, engine)
 
     os.makedirs("schemas", exist_ok=True)
