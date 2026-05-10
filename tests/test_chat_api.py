@@ -1,3 +1,4 @@
+import io
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
@@ -72,7 +73,7 @@ async def test_chat_creates_messages(test_app):
         async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
             create = await client.post("/api/conversations", json={"title": "Test chat"})
             conv_id = create.json()["id"]
-            response = await client.post("/api/chat", json={
+            response = await client.post("/api/chat", data={
                 "conversation_id": conv_id,
                 "message": "Come installo un interruttore differenziale?",
                 "model": "claude",
@@ -90,7 +91,7 @@ async def test_get_conversation_messages(test_app):
         async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
             create = await client.post("/api/conversations", json={"title": "History test"})
             conv_id = create.json()["id"]
-            await client.post("/api/chat", json={
+            await client.post("/api/chat", data={
                 "conversation_id": conv_id,
                 "message": "Ciao",
                 "model": "claude",
@@ -110,7 +111,7 @@ async def test_chat_messages_persisted(test_app):
         async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
             create = await client.post("/api/conversations", json={"title": "Persist test"})
             conv_id = create.json()["id"]
-            await client.post("/api/chat", json={
+            await client.post("/api/chat", data={
                 "conversation_id": conv_id,
                 "message": "Come si installa un cavo?",
                 "model": "claude",
@@ -128,7 +129,7 @@ async def test_chat_ai_failure_returns_502(test_app):
         async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
             create = await client.post("/api/conversations", json={"title": "Error test"})
             conv_id = create.json()["id"]
-            response = await client.post("/api/chat", json={
+            response = await client.post("/api/chat", data={
                 "conversation_id": conv_id,
                 "message": "Ciao",
                 "model": "claude",
@@ -140,4 +141,43 @@ async def test_chat_ai_failure_returns_502(test_app):
 async def test_get_messages_nonexistent_conversation(test_app):
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
         response = await client.get("/api/conversations/9999/messages")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_chat_with_image(test_app):
+    with patch("api.chat.send_message", new_callable=AsyncMock) as mock_ai:
+        mock_ai.return_value = "Vedo un interruttore magnetotermico."
+        async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
+            create = await client.post("/api/conversations", json={"title": "Image test"})
+            conv_id = create.json()["id"]
+            response = await client.post(
+                "/api/chat",
+                data={"conversation_id": conv_id, "message": "Cosa vedi?", "model": "claude"},
+                files={"image": ("test.jpg", b"\xff\xd8\xff\xe0fake", "image/jpeg")},
+            )
+    assert response.status_code == 200
+    assert response.json()["reply"] == "Vedo un interruttore magnetotermico."
+    call_kwargs = mock_ai.call_args.kwargs
+    assert call_kwargs["image_base64"] is not None
+    assert call_kwargs["image_type"] == "image/jpeg"
+
+
+@pytest.mark.asyncio
+async def test_chat_invalid_model(test_app):
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
+        create = await client.post("/api/conversations", json={"title": "Model test"})
+        conv_id = create.json()["id"]
+        response = await client.post("/api/chat", data={
+            "conversation_id": conv_id,
+            "message": "Ciao",
+            "model": "gpt-9",
+        })
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_upload_not_found(test_app):
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
+        response = await client.get("/api/uploads/nonexistent_file_xyz.jpg")
     assert response.status_code == 404

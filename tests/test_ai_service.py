@@ -86,3 +86,50 @@ async def test_deepseek_calls_raise_for_status():
         with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key"}):
             await send_message(SAMPLE_MESSAGES, system_prompt="Test", model="deepseek")
     mock_response.raise_for_status.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_send_message_claude_with_image():
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="Vedo un interruttore.")]
+    mock_client = MagicMock()
+    mock_client.messages.create = MagicMock(return_value=mock_message)
+
+    with patch("services.ai_service.anthropic.Anthropic", return_value=mock_client):
+        with patch.dict(os.environ, {"CLAUDE_API_KEY": "test-key"}):
+            result = await send_message(
+                SAMPLE_MESSAGES,
+                system_prompt="Test",
+                model="claude",
+                image_base64="dGVzdA==",
+                image_type="image/jpeg",
+            )
+
+    assert result == "Vedo un interruttore."
+    call_args = mock_client.messages.create.call_args
+    last_msg = call_args.kwargs["messages"][-1]
+    assert isinstance(last_msg["content"], list)
+    assert last_msg["content"][0]["type"] == "image"
+    assert last_msg["content"][0]["source"]["data"] == "dGVzdA=="
+    assert last_msg["content"][1]["type"] == "text"
+
+
+@pytest.mark.asyncio
+async def test_send_message_deepseek_with_image_adds_note():
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "choices": [{"message": {"content": "Risposta con nota"}}]
+    }
+
+    with patch("services.ai_service.requests.post", return_value=mock_response) as mock_post:
+        with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key"}):
+            await send_message(
+                SAMPLE_MESSAGES,
+                system_prompt="Test",
+                model="deepseek",
+                image_base64="dGVzdA==",
+            )
+
+    payload = mock_post.call_args.kwargs["json"]
+    last_user_msg = [m for m in payload["messages"] if m["role"] == "user"][-1]
+    assert "analisi non disponibile" in last_user_msg["content"]

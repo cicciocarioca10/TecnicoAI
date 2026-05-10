@@ -1,4 +1,4 @@
-from services.question_engine import detect_technical_request, has_clarifications_been_asked, build_system_prompt
+from services.question_engine import detect_technical_request, has_clarifications_been_asked, build_system_prompt, should_search
 
 
 def test_detects_electrical_request():
@@ -68,3 +68,31 @@ def test_has_clarifications_list_content_no_question():
         {"role": "assistant", "content": [{"type": "text", "text": "Certo, capito."}]},
     ]
     assert has_clarifications_been_asked(messages) is False
+
+
+def test_should_search_normativa():
+    assert should_search("Qual è la normativa CEI per impianti BT?") is True
+
+
+def test_should_search_prezzo():
+    assert should_search("Qual è il prezzo di un interruttore Legrand?") is True
+
+
+def test_should_search_scheda_tecnica():
+    assert should_search("Dammi la scheda tecnica del motore ABB") is True
+
+
+def test_should_search_no_trigger():
+    assert should_search("Come collegare due cavi insieme?") is False
+
+
+def test_build_system_prompt_with_search_context():
+    context = "=== Contesto da ricerca web ===\nRisultato fittizio"
+    prompt = build_system_prompt(is_technical=False, clarifications_asked=False, search_context=context)
+    assert "Contesto da ricerca web" in prompt
+
+
+def test_build_system_prompt_empty_search_context():
+    prompt_no_ctx = build_system_prompt(is_technical=False, clarifications_asked=False)
+    prompt_empty = build_system_prompt(is_technical=False, clarifications_asked=False, search_context="")
+    assert prompt_no_ctx == prompt_empty

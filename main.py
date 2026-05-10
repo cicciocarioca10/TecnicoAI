@@ -32,7 +32,7 @@ app.add_middleware(
 app.include_router(chat_router, prefix="/api")
 app.include_router(history_router, prefix="/api")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

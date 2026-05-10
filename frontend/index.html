@@ -609,21 +609,12 @@ async function sendMessage() {
   removeImage();
 
   try {
-    let res;
-    if (imgToSend) {
-      const fd = new FormData();
-      fd.append('conversation_id', currentConvId);
-      fd.append('message', text || '(immagine allegata)');
-      fd.append('model', 'claude');
-      fd.append('image', imgToSend);
-      res = await fetch(`${BACKEND_URL}/api/chat/image`, { method: 'POST', body: fd });
-    } else {
-      res = await fetch(`${BACKEND_URL}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation_id: currentConvId, message: text, model: 'claude' }),
-      });
-    }
+    const fd = new FormData();
+    fd.append('conversation_id', currentConvId);
+    fd.append('message', text || '(immagine allegata)');
+    fd.append('model', 'claude');
+    if (imgToSend) fd.append('image', imgToSend);
+    const res = await fetch(`${BACKEND_URL}/api/chat`, { method: 'POST', body: fd });
 
     typingEl.classList.remove('visible');
 
