@@ -1,5 +1,6 @@
 import base64
 import os
+import traceback
 import uuid
 from typing import Optional
 
@@ -112,8 +113,8 @@ async def chat(
             image_base64=image_base64,
             image_type=image_type,
         )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail="Servizio AI non disponibile") from exc
+    except Exception:
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
 
     await create_message(db, conversation_id, "assistant", reply)
     return {"reply": reply, "conversation_id": conversation_id}
