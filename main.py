@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from db.database import init_db
+from api.auth import router as auth_router
 from api.chat import router as chat_router
 from api.history import router as history_router
 from api.schema import router as schema_router
@@ -37,6 +38,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(history_router, prefix="/api")
 app.include_router(schema_router, prefix="/api")

@@ -2,20 +2,18 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, select, delete, event
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, select, delete, event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./tecnicoai.db")
 
-# Railway provides postgres:// but SQLAlchemy async requires postgresql+asyncpg://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-# SQLite-only: enable foreign keys
 if DATABASE_URL.startswith("sqlite"):
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(dbapi_conn, _):
@@ -26,10 +24,24 @@ if DATABASE_URL.startswith("sqlite"):
 Base = declarative_base()
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    full_name = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
 class Conversation(Base):
     __tablename__ = "conversations"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     title = Column(String(255), nullable=False, default="Nuova conversazione")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -69,8 +81,40 @@ async def get_db():
         yield session
 
 
-async def create_conversation(db: AsyncSession, title: str = "Nuova conversazione") -> Conversation:
-    conv = Conversation(title=title)
+# ─── USER ────────────────────────────────────────────────────────────────────
+
+async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
+    result = await db.execute(select(User).where(User.email == email))
+    return result.scalar_one_or_none()
+
+
+async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
+    result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def create_user(
+    db: AsyncSession,
+    email: str,
+    password_hash: str,
+    full_name: str,
+    is_admin: bool = False,
+) -> User:
+    user = User(email=email, password_hash=password_hash, full_name=full_name, is_admin=is_admin)
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+# ─── CONVERSATION ─────────────────────────────────────────────────────────────
+
+async def create_conversation(
+    db: AsyncSession,
+    title: str = "Nuova conversazione",
+    user_id: Optional[int] = None,
+) -> Conversation:
+    conv = Conversation(title=title, user_id=user_id)
     db.add(conv)
     await db.commit()
     await db.refresh(conv)
@@ -82,13 +126,16 @@ async def get_conversation(db: AsyncSession, conversation_id: int) -> Optional[C
     return result.scalar_one_or_none()
 
 
-async def list_conversations(db: AsyncSession) -> list[Conversation]:
-    result = await db.execute(select(Conversation).order_by(Conversation.updated_at.desc()))
+async def list_conversations(db: AsyncSession, user_id: Optional[int] = None) -> list[Conversation]:
+    q = select(Conversation)
+    if user_id is not None:
+        q = q.where(Conversation.user_id == user_id)
+    q = q.order_by(Conversation.updated_at.desc())
+    result = await db.execute(q)
     return list(result.scalars().all())
 
 
 async def delete_conversation(db: AsyncSession, conversation_id: int):
-    import os
     schemas_result = await db.execute(
         select(Schema).where(Schema.conversation_id == conversation_id)
     )
@@ -103,6 +150,8 @@ async def delete_conversation(db: AsyncSession, conversation_id: int):
     await db.execute(delete(Conversation).where(Conversation.id == conversation_id))
     await db.commit()
 
+
+# ─── MESSAGE ──────────────────────────────────────────────────────────────────
 
 async def create_message(
     db: AsyncSession,
@@ -136,6 +185,8 @@ async def get_messages(db: AsyncSession, conversation_id: int) -> list[Message]:
     )
     return list(result.scalars().all())
 
+
+# ─── SCHEMA ──────────────────────────────────────────────────────────────────
 
 async def create_schema(
     db: AsyncSession,

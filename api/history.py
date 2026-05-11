@@ -2,14 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.database import get_db, list_conversations, get_conversation, get_messages
+from services.auth_service import get_current_user
 
 
 router = APIRouter()
 
 
 @router.get("/conversations")
-async def conversations_list(db: AsyncSession = Depends(get_db)):
-    convs = await list_conversations(db)
+async def conversations_list(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    convs = await list_conversations(db, user_id=current_user.id)
     return [
         {"id": c.id, "title": c.title, "created_at": c.created_at, "updated_at": c.updated_at}
         for c in convs
@@ -17,9 +21,13 @@ async def conversations_list(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/conversations/{conversation_id}/messages")
-async def conversation_messages(conversation_id: int, db: AsyncSession = Depends(get_db)):
+async def conversation_messages(
+    conversation_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     conv = await get_conversation(db, conversation_id)
-    if not conv:
+    if not conv or conv.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Conversazione non trovata")
     msgs = await get_messages(db, conversation_id)
     return [

@@ -518,9 +518,119 @@
       padding: 16px;
       text-align: center;
     }
+
+    /* ── AUTH OVERLAY ── */
+    #auth-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: var(--bg);
+      align-items: center;
+      justify-content: center;
+    }
+    .auth-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 36px;
+      width: min(420px, 90vw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .auth-logo { font-size: 48px; line-height: 1; }
+    .auth-title { font-size: 26px; font-weight: 700; color: var(--accent); }
+    .auth-subtitle { color: var(--text-muted); font-size: 13px; margin-top: -12px; }
+    .auth-form { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .auth-input {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      width: 100%;
+    }
+    .auth-input:focus { outline: none; border-color: var(--accent); }
+    .auth-btn {
+      background: var(--accent);
+      border: none;
+      color: #000;
+      padding: 11px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      width: 100%;
+      margin-top: 4px;
+    }
+    .auth-btn:hover { background: var(--accent-dark); }
+    .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .auth-switch { font-size: 13px; color: var(--text-muted); }
+    .auth-switch a { color: var(--accent); cursor: pointer; }
+    .auth-switch a:hover { text-decoration: underline; }
+    .auth-error { color: var(--error); font-size: 13px; text-align: center; min-height: 16px; }
+
+    /* ── USER WIDGET ── */
+    .user-widget { display: flex; align-items: center; gap: 8px; }
+    .user-name {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .btn-logout:hover { color: var(--error); border-color: var(--error); }
   </style>
 </head>
 <body>
+
+<!-- Auth Overlay -->
+<div id="auth-overlay">
+  <!-- Login -->
+  <div class="auth-card" id="auth-login-card">
+    <div class="auth-logo">⚡</div>
+    <div class="auth-title">TecnicoAI</div>
+    <div class="auth-subtitle">Assistente AI per tecnici</div>
+    <form class="auth-form" onsubmit="doLogin(event)">
+      <input class="auth-input" type="email" id="login-email" placeholder="Email" required autocomplete="email">
+      <input class="auth-input" type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
+      <button class="auth-btn" type="submit" id="login-btn">Accedi</button>
+    </form>
+    <div class="auth-error" id="login-error"></div>
+    <div class="auth-switch">Non hai un account? <a onclick="showRegister()">Registrati</a></div>
+  </div>
+  <!-- Register -->
+  <div class="auth-card" id="auth-register-card" style="display:none">
+    <div class="auth-logo">⚡</div>
+    <div class="auth-title">Crea account</div>
+    <div class="auth-subtitle">TecnicoAI — Registrazione</div>
+    <form class="auth-form" onsubmit="doRegister(event)">
+      <input class="auth-input" type="text" id="reg-name" placeholder="Nome completo" required autocomplete="name">
+      <input class="auth-input" type="email" id="reg-email" placeholder="Email" required autocomplete="email">
+      <input class="auth-input" type="password" id="reg-password" placeholder="Password (min. 8 caratteri)" required autocomplete="new-password" minlength="8">
+      <input class="auth-input" type="password" id="reg-confirm" placeholder="Conferma password" required autocomplete="new-password">
+      <button class="auth-btn" type="submit" id="reg-btn">Registrati</button>
+    </form>
+    <div class="auth-error" id="reg-error"></div>
+    <div class="auth-switch">Hai già un account? <a onclick="showLogin()">Accedi</a></div>
+  </div>
+</div>
 
 <header>
   <div class="header-left">
@@ -530,6 +640,10 @@
   <div class="header-right">
     <button class="btn-export" onclick="exportConversation()" title="Esporta chat">↓ Esporta</button>
     <button class="btn-new" onclick="newConversation()">+ Nuova Chat</button>
+    <div class="user-widget" id="user-widget" style="display:none">
+      <span class="user-name" id="user-name"></span>
+      <button class="btn-logout" onclick="doLogout()">Esci</button>
+    </div>
     <button class="btn-icon" onclick="openSidebar()" title="Storico conversazioni">☰</button>
   </div>
 </header>
@@ -613,6 +727,7 @@ const BACKEND_URL = window.location.hostname === 'localhost' || window.location.
   : ''; // same origin when served by Railway
 
 let currentConvId = null;
+let currentUser = null;
 let attachedImage = null;
 let isSending = false;
 let selectedDomain = 'auto';
@@ -620,9 +735,123 @@ let currentSchemaId = null;
 let currentDotCode = null;
 let currentPdfUrl = null;
 
+// ─── AUTH ──────────────────────────────────────────────────────────────────
+
+function getToken() { return localStorage.getItem('tecnicoai_token'); }
+
+async function authFetch(url, options = {}) {
+  const token = getToken();
+  const headers = { ...(options.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) { doLogout(); throw new Error('401'); }
+  return res;
+}
+
+function showAuthOverlay() { document.getElementById('auth-overlay').style.display = 'flex'; }
+function hideAuthOverlay() { document.getElementById('auth-overlay').style.display = 'none'; }
+
+function showLogin() {
+  document.getElementById('auth-login-card').style.display = '';
+  document.getElementById('auth-register-card').style.display = 'none';
+  document.getElementById('login-error').textContent = '';
+}
+
+function showRegister() {
+  document.getElementById('auth-login-card').style.display = 'none';
+  document.getElementById('auth-register-card').style.display = '';
+  document.getElementById('reg-error').textContent = '';
+}
+
+function setCurrentUser(user) {
+  currentUser = user;
+  document.getElementById('user-name').textContent = user.full_name || user.email;
+  document.getElementById('user-widget').style.display = 'flex';
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  btn.disabled = true; errEl.textContent = '';
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.getElementById('login-email').value,
+        password: document.getElementById('login-password').value,
+      }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      errEl.textContent = d.detail || 'Credenziali non valide'; return;
+    }
+    const d = await res.json();
+    localStorage.setItem('tecnicoai_token', d.access_token);
+    setCurrentUser(d.user);
+    hideAuthOverlay();
+    await init(false);
+  } catch (_) { errEl.textContent = 'Errore di connessione'; }
+  finally { btn.disabled = false; }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  const btn = document.getElementById('reg-btn');
+  const errEl = document.getElementById('reg-error');
+  const pwd = document.getElementById('reg-password').value;
+  const confirm = document.getElementById('reg-confirm').value;
+  if (pwd !== confirm) { errEl.textContent = 'Le password non coincidono'; return; }
+  btn.disabled = true; errEl.textContent = '';
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.getElementById('reg-email').value,
+        password: pwd,
+        full_name: document.getElementById('reg-name').value,
+      }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      errEl.textContent = d.detail || 'Registrazione fallita'; return;
+    }
+    const d = await res.json();
+    localStorage.setItem('tecnicoai_token', d.access_token);
+    setCurrentUser(d.user);
+    hideAuthOverlay();
+    await init(false);
+  } catch (_) { errEl.textContent = 'Errore di connessione'; }
+  finally { btn.disabled = false; }
+}
+
+function doLogout() {
+  localStorage.removeItem('tecnicoai_token');
+  localStorage.removeItem('currentConvId');
+  currentUser = null; currentConvId = null;
+  document.getElementById('user-widget').style.display = 'none';
+  document.getElementById('conv-list').innerHTML = '';
+  showEmptyState();
+  showLogin();
+  showAuthOverlay();
+}
+
 // ─── STARTUP ───────────────────────────────────────────────────────────────
 
-async function init() {
+async function init(checkAuth = true) {
+  if (checkAuth) {
+    const token = getToken();
+    if (!token) { showLogin(); showAuthOverlay(); return; }
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) { doLogout(); return; }
+      setCurrentUser(await res.json());
+    } catch (_) { doLogout(); return; }
+  }
   const saved = parseInt(localStorage.getItem('currentConvId'));
   await loadConversations();
   if (saved) {
@@ -636,7 +865,7 @@ async function init() {
 
 async function loadConversations() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/conversations`);
+    const res = await authFetch(`${BACKEND_URL}/api/conversations`);
     const convs = await res.json();
     renderConvList(convs);
   } catch (_) {
@@ -675,7 +904,7 @@ async function selectConversation(convId, closeSide) {
 
 async function newConversation() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/conversations`, {
+    const res = await authFetch(`${BACKEND_URL}/api/conversations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Nuova conversazione' }),
@@ -691,7 +920,7 @@ async function newConversation() {
 
 async function deleteConversation(convId) {
   try {
-    await fetch(`${BACKEND_URL}/api/conversations/${convId}`, { method: 'DELETE' });
+    await authFetch(`${BACKEND_URL}/api/conversations/${convId}`, { method: 'DELETE' });
     if (convId === currentConvId) {
       currentConvId = null;
       localStorage.removeItem('currentConvId');
@@ -714,7 +943,7 @@ function closeSidebar() {
 
 async function loadMessages(convId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/conversations/${convId}/messages`);
+    const res = await authFetch(`${BACKEND_URL}/api/conversations/${convId}/messages`);
     if (!res.ok) { showEmptyState(); return; }
     const msgs = await res.json();
     renderMessages(msgs);
@@ -831,7 +1060,7 @@ async function sendMessage() {
     fd.append('message', text || '(immagine allegata)');
     fd.append('model', 'claude');
     if (imgToSend) fd.append('image', imgToSend);
-    const res = await fetch(`${BACKEND_URL}/api/chat`, { method: 'POST', body: fd });
+    const res = await authFetch(`${BACKEND_URL}/api/chat`, { method: 'POST', body: fd });
 
     typingEl.classList.remove('visible');
 
@@ -889,7 +1118,7 @@ function removeImage() {
 async function exportConversation() {
   if (!currentConvId) return;
   try {
-    const res = await fetch(`${BACKEND_URL}/api/conversations/${currentConvId}/messages`);
+    const res = await authFetch(`${BACKEND_URL}/api/conversations/${currentConvId}/messages`);
     const msgs = await res.json();
     if (!msgs.length) return;
     const lines = msgs.map(m =>
@@ -981,7 +1210,7 @@ async function generateSchema() {
   panel.classList.add('open');
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/schema/generate`, {
+    const res = await authFetch(`${BACKEND_URL}/api/schema/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ conversation_id: currentConvId, domain: selectedDomain, model: 'claude' }),

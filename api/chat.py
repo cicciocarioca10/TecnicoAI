@@ -16,6 +16,7 @@ from db.database import (
     create_message,
     get_messages,
 )
+from services.auth_service import get_current_user
 from services.question_engine import (
     detect_technical_request,
     has_clarifications_been_asked,
@@ -34,15 +35,23 @@ class ConversationCreate(BaseModel):
 
 
 @router.post("/conversations")
-async def new_conversation(body: ConversationCreate, db: AsyncSession = Depends(get_db)):
-    conv = await create_conversation(db, body.title)
+async def new_conversation(
+    body: ConversationCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    conv = await create_conversation(db, body.title, user_id=current_user.id)
     return {"id": conv.id, "title": conv.title, "created_at": conv.created_at}
 
 
 @router.delete("/conversations/{conversation_id}")
-async def remove_conversation(conversation_id: int, db: AsyncSession = Depends(get_db)):
+async def remove_conversation(
+    conversation_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     conv = await get_conversation(db, conversation_id)
-    if not conv:
+    if not conv or conv.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Conversazione non trovata")
     await delete_conversation(db, conversation_id)
     return {"ok": True}
@@ -55,12 +64,13 @@ async def chat(
     model: str = Form("claude"),
     image: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     if model not in ("claude", "deepseek"):
         raise HTTPException(status_code=422, detail="Modello non supportato")
 
     conv = await get_conversation(db, conversation_id)
-    if not conv:
+    if not conv or conv.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Conversazione non trovata")
 
     image_base64: Optional[str] = None
