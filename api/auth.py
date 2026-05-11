@@ -1,14 +1,20 @@
+import logging
+import secrets
+import string
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.database import get_db, get_user_by_email, create_user
+from db.database import count_users, get_db, get_user_by_email, create_user
 from services.auth_service import (
     hash_password,
     verify_password,
     create_access_token,
     get_current_user,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth")
 
@@ -71,3 +77,31 @@ async def me(current_user=Depends(get_current_user)):
 @router.post("/logout")
 async def logout():
     return {"ok": True}
+
+
+def _generate_password(length: int = 20) -> str:
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    while True:
+        pwd = "".join(secrets.choice(alphabet) for _ in range(length))
+        if (
+            any(c.islower() for c in pwd)
+            and any(c.isupper() for c in pwd)
+            and any(c.isdigit() for c in pwd)
+            and any(c in "!@#$%^&*" for c in pwd)
+        ):
+            return pwd
+
+
+@router.post("/setup", status_code=status.HTTP_201_CREATED)
+async def setup_first_admin(db: AsyncSession = Depends(get_db)):
+    if await count_users(db) > 0:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Setup già completato")
+    email = f"admin@tecnicoai.it"
+    password = _generate_password()
+    user = await create_user(db, email, hash_password(password), "Admin", is_admin=True)
+    logger.info("SETUP: utente creato %s", email)
+    return {
+        "email": email,
+        "password": password,
+        "message": "Admin creato. Salva queste credenziali — non verranno mostrate di nuovo.",
+    }

@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, select, delete, event
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func, select, delete, event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -105,6 +105,11 @@ async def create_user(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+async def count_users(db: AsyncSession) -> int:
+    result = await db.execute(select(func.count()).select_from(User))
+    return result.scalar_one()
 
 
 # ─── CONVERSATION ─────────────────────────────────────────────────────────────
