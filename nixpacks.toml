@@ -1,2 +1,5 @@
 [phases.setup]
 nixPkgs = ["graphviz", "cairo", "pango", "libffi", "glib"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]

@@ -608,7 +608,9 @@
 </div>
 
 <script>
-const BACKEND_URL = 'http://localhost:8000';
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000'
+  : ''; // same origin when served by Railway
 
 let currentConvId = null;
 let attachedImage = null;

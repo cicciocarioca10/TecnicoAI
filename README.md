@@ -35,26 +35,43 @@ AI_MODEL=claude                # Modello di default: "claude" oppure "deepseek"
 
 ## Deploy
 
-### Backend → Railway
+### Backend + Frontend → Railway
 
-1. Crea un account su [railway.app](https://railway.app) e collega il repository GitHub
-2. Railway rileva automaticamente `railway.json` e `Procfile`
-3. Imposta le variabili d'ambiente nella sezione *Variables* del progetto Railway:
-   - `CLAUDE_API_KEY`
-   - `DEEPSEEK_API_KEY`
-   - `AI_MODEL`
-4. Railway assegna un URL pubblico tipo `https://tecnicoai-production.up.railway.app`
+Railway serve sia il backend FastAPI che il frontend statico dalla stessa app.
 
-### Frontend → Vercel
+1. Crea account su [railway.app](https://railway.app)
+2. **New Project → Deploy from GitHub repo** → seleziona questo repository
+3. Railway rileva automaticamente `railway.json`, `Procfile` e `nixpacks.toml`
+4. (Opzionale) Aggiungi il plugin **PostgreSQL** per database persistente
+5. Imposta le variabili d'ambiente nella sezione **Variables** — vedi lista completa in [`docs/railway-env-vars.md`](docs/railway-env-vars.md)
+6. Railway deploya automaticamente ad ogni push su `master`
+7. Copia URL generato (es. `https://tecnicoai-production.up.railway.app`)
 
-1. Crea un account su [vercel.com](https://vercel.com) e importa il repository
-2. Imposta la *Root Directory* su `frontend`
+**Test post-deploy:**
+```
+GET https://tuo-url.railway.app/health  → {"status": "ok", ...}
+GET https://tuo-url.railway.app/docs    → Swagger UI
+GET https://tuo-url.railway.app/        → interfaccia chat
+```
+
+**CORS:** Se usi un frontend separato su Vercel, aggiungi l'URL Vercel alla variabile `ALLOWED_ORIGINS` su Railway:
+```
+ALLOWED_ORIGINS=https://tuo-progetto.vercel.app,http://localhost:3000
+```
+
+### Frontend separato → Vercel (opzionale)
+
+Il frontend funziona già servito da Railway (stessa origin, nessun CORS). Vercel è utile solo se vuoi CDN globale o deploy separato.
+
+1. Crea account su [vercel.com](https://vercel.com) e importa il repository
+2. Imposta *Root Directory* su `frontend`
 3. Deploy type: **Static** (nessun build necessario)
-4. Prima del deploy, modifica `BACKEND_URL` in `frontend/index.html`:
-   ```js
-   const BACKEND_URL = 'https://tecnicoai-production.up.railway.app';
-   ```
-5. Vercel pubblica il frontend e aggiorna automaticamente ad ogni push
+4. Aggiungi l'URL Vercel a `ALLOWED_ORIGINS` su Railway (vedi sopra)
+5. Vercel aggiorna automaticamente ad ogni push
+
+### Nota su upload e schemi PDF
+
+Railway ha filesystem effimero: upload e PDF generati si perdono al restart/redeploy. Per produzione reale usare Cloudflare R2 o AWS S3. Per il test con i primi clienti il filesystem locale è sufficiente.
 
 ## Cambiare modello AI
 

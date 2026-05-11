@@ -24,9 +24,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="TecnicoAI", lifespan=lifespan)
 
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:8000,http://localhost:3000"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -36,6 +42,16 @@ app.include_router(history_router, prefix="/api")
 app.include_router(schema_router, prefix="/api")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+
+
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "model": os.getenv("AI_MODEL", "claude"),
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
