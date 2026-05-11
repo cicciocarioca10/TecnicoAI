@@ -613,22 +613,6 @@
       <button class="auth-btn" type="submit" id="login-btn">Accedi</button>
     </form>
     <div class="auth-error" id="login-error"></div>
-    <div class="auth-switch">Non hai un account? <a onclick="showRegister()">Registrati</a></div>
-  </div>
-  <!-- Register -->
-  <div class="auth-card" id="auth-register-card" style="display:none">
-    <div class="auth-logo">⚡</div>
-    <div class="auth-title">Crea account</div>
-    <div class="auth-subtitle">TecnicoAI — Registrazione</div>
-    <form class="auth-form" onsubmit="doRegister(event)">
-      <input class="auth-input" type="text" id="reg-name" placeholder="Nome completo" required autocomplete="name">
-      <input class="auth-input" type="email" id="reg-email" placeholder="Email" required autocomplete="email">
-      <input class="auth-input" type="password" id="reg-password" placeholder="Password (min. 8 caratteri)" required autocomplete="new-password" minlength="8">
-      <input class="auth-input" type="password" id="reg-confirm" placeholder="Conferma password" required autocomplete="new-password">
-      <button class="auth-btn" type="submit" id="reg-btn">Registrati</button>
-    </form>
-    <div class="auth-error" id="reg-error"></div>
-    <div class="auth-switch">Hai già un account? <a onclick="showLogin()">Accedi</a></div>
   </div>
 </div>
 
@@ -753,14 +737,7 @@ function hideAuthOverlay() { document.getElementById('auth-overlay').style.displ
 
 function showLogin() {
   document.getElementById('auth-login-card').style.display = '';
-  document.getElementById('auth-register-card').style.display = 'none';
   document.getElementById('login-error').textContent = '';
-}
-
-function showRegister() {
-  document.getElementById('auth-login-card').style.display = 'none';
-  document.getElementById('auth-register-card').style.display = '';
-  document.getElementById('reg-error').textContent = '';
 }
 
 function setCurrentUser(user) {
@@ -796,36 +773,6 @@ async function doLogin(e) {
   finally { btn.disabled = false; }
 }
 
-async function doRegister(e) {
-  e.preventDefault();
-  const btn = document.getElementById('reg-btn');
-  const errEl = document.getElementById('reg-error');
-  const pwd = document.getElementById('reg-password').value;
-  const confirm = document.getElementById('reg-confirm').value;
-  if (pwd !== confirm) { errEl.textContent = 'Le password non coincidono'; return; }
-  btn.disabled = true; errEl.textContent = '';
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: document.getElementById('reg-email').value,
-        password: pwd,
-        full_name: document.getElementById('reg-name').value,
-      }),
-    });
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      errEl.textContent = d.detail || 'Registrazione fallita'; return;
-    }
-    const d = await res.json();
-    localStorage.setItem('tecnicoai_token', d.access_token);
-    setCurrentUser(d.user);
-    hideAuthOverlay();
-    await init(false);
-  } catch (_) { errEl.textContent = 'Errore di connessione'; }
-  finally { btn.disabled = false; }
-}
 
 function doLogout() {
   localStorage.removeItem('tecnicoai_token');
