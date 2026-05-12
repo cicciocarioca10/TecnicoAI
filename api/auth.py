@@ -1,6 +1,7 @@
 import logging
 import secrets
 import string
+import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -94,14 +95,21 @@ def _generate_password(length: int = 20) -> str:
 
 @router.post("/setup", status_code=status.HTTP_201_CREATED)
 async def setup_first_admin(db: AsyncSession = Depends(get_db)):
-    if await count_users(db) > 0:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Setup già completato")
-    email = f"admin@tecnicoai.it"
-    password = _generate_password()
-    user = await create_user(db, email, hash_password(password), "Admin", is_admin=True)
-    logger.info("SETUP: utente creato %s", email)
-    return {
-        "email": email,
-        "password": password,
-        "message": "Admin creato. Salva queste credenziali — non verranno mostrate di nuovo.",
-    }
+    try:
+        if await count_users(db) > 0:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Setup già completato")
+        email = "admin@tecnicoai.it"
+        password = _generate_password()
+        user = await create_user(db, email, hash_password(password), "Admin", is_admin=True)
+        logger.info("SETUP: utente creato %s", email)
+        return {
+            "email": email,
+            "password": password,
+            "message": "Admin creato. Salva queste credenziali — non verranno mostrate di nuovo.",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        tb = traceback.format_exc()
+        logger.error("SETUP error:\n%s", tb)
+        raise HTTPException(status_code=500, detail=tb)
