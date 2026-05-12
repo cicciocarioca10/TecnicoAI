@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func, select, delete, event
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func, select, delete, event, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -76,6 +76,19 @@ class Schema(Base):
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if "postgresql" in DATABASE_URL:
+            pg_cols = {
+                "users": ["created_at", "updated_at"],
+                "conversations": ["created_at", "updated_at"],
+                "messages": ["created_at"],
+                "schemas": ["created_at"],
+            }
+            for table, cols in pg_cols.items():
+                for col in cols:
+                    await conn.execute(text(
+                        f"ALTER TABLE {table} ALTER COLUMN {col} "
+                        f"TYPE TIMESTAMPTZ USING {col} AT TIME ZONE 'UTC'"
+                    ))
 
 
 async def get_db():
