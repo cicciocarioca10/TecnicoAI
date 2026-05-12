@@ -1127,12 +1127,17 @@ function closeSchemaPanel() {
   document.getElementById('schema-panel').classList.remove('open');
 }
 
-function downloadSchemaPdf() {
+async function downloadSchemaPdf() {
   if (!currentPdfUrl) return;
+  const res = await authFetch(`${BACKEND_URL}${currentPdfUrl}`);
+  if (!res.ok) { alert('Errore nel download del PDF.'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = `${BACKEND_URL}${currentPdfUrl}`;
+  a.href = url;
   a.download = `schema-${currentSchemaId}.pdf`;
   a.click();
+  URL.revokeObjectURL(url);
 }
 
 function copyDotCode() {
@@ -1176,9 +1181,18 @@ async function generateSchema() {
       badge.textContent = 'Schema industriale (Graphviz)';
       badge.className = 'schema-complexity-badge badge-graphviz';
       document.getElementById('btn-copy-dot').style.display = '';
-      content.innerHTML = data.pdf_url
-        ? `<iframe class="schema-pdf-frame" src="${BACKEND_URL}${data.pdf_url}" title="Schema PDF"></iframe>`
-        : '<div class="schema-error">PDF non disponibile.</div>';
+      if (data.pdf_url) {
+        const pdfRes = await authFetch(`${BACKEND_URL}${data.pdf_url}`);
+        if (pdfRes.ok) {
+          const blob = await pdfRes.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          content.innerHTML = `<iframe class="schema-pdf-frame" src="${blobUrl}" title="Schema PDF"></iframe>`;
+        } else {
+          content.innerHTML = '<div class="schema-error">PDF non disponibile.</div>';
+        }
+      } else {
+        content.innerHTML = '<div class="schema-error">PDF non disponibile.</div>';
+      }
     } else {
       badge.textContent = 'Schema semplice (SVG)';
       badge.className = 'schema-complexity-badge badge-svg';
