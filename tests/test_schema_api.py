@@ -52,13 +52,13 @@ async def test_generate_schema_svg(test_app):
 
 
 @pytest.mark.asyncio
-async def test_generate_schema_graphviz(test_app):
+async def test_generate_schema_plc_domain(test_app):
     mock_result = {
         "schema_id": 2,
-        "engine": "graphviz",
+        "engine": "svg",
         "schema_type": "plc",
         "pdf_url": "/api/schema/pdf/2",
-        "content": "digraph schema { A -> B }",
+        "content": "<svg viewBox='0 0 1123 794'><rect/></svg>",
     }
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
         create = await client.post("/api/conversations", json={"title": "PLC Test"})
@@ -66,7 +66,7 @@ async def test_generate_schema_graphviz(test_app):
         with patch("api.schema.schema_service.generate_schema", new_callable=AsyncMock, return_value=mock_result):
             r = await client.post("/api/schema/generate", json={"conversation_id": conv_id, "domain": "plc"})
     assert r.status_code == 200
-    assert r.json()["engine"] == "graphviz"
+    assert r.json()["engine"] == "svg"
     assert r.json()["schema_type"] == "plc"
 
 

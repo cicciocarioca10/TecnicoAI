@@ -663,7 +663,6 @@
     </div>
     <div class="schema-panel-actions">
       <button class="btn-panel-icon" id="btn-download-pdf" onclick="downloadSchemaPdf()" title="Scarica PDF">📄 PDF</button>
-      <button class="btn-panel-icon" id="btn-copy-dot" onclick="copyDotCode()" title="Copia codice DOT" style="display:none">📋 DOT</button>
       <button class="schema-panel-close" onclick="closeSchemaPanel()">✕</button>
     </div>
   </div>
@@ -1140,16 +1139,6 @@ async function downloadSchemaPdf() {
   URL.revokeObjectURL(url);
 }
 
-function copyDotCode() {
-  if (!currentDotCode) return;
-  navigator.clipboard.writeText(currentDotCode).then(() => {
-    const btn = document.getElementById('btn-copy-dot');
-    const orig = btn.textContent;
-    btn.textContent = '✓ Copiato';
-    setTimeout(() => { btn.textContent = orig; }, 1500);
-  });
-}
-
 async function generateSchema() {
   const btn = document.getElementById('btn-generate-schema');
   btn.disabled = true;
@@ -1174,31 +1163,11 @@ async function generateSchema() {
     const data = await res.json();
     currentSchemaId = data.schema_id;
     currentPdfUrl = data.pdf_url;
-    currentDotCode = data.engine === 'graphviz' ? data.content : null;
 
     const badge = document.getElementById('schema-badge');
-    if (data.engine === 'graphviz') {
-      badge.textContent = 'Schema industriale (Graphviz)';
-      badge.className = 'schema-complexity-badge badge-graphviz';
-      document.getElementById('btn-copy-dot').style.display = '';
-      if (data.pdf_url) {
-        const pdfRes = await authFetch(`${BACKEND_URL}${data.pdf_url}`);
-        if (pdfRes.ok) {
-          const blob = await pdfRes.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          content.innerHTML = `<iframe class="schema-pdf-frame" src="${blobUrl}" title="Schema PDF"></iframe>`;
-        } else {
-          content.innerHTML = '<div class="schema-error">PDF non disponibile.</div>';
-        }
-      } else {
-        content.innerHTML = '<div class="schema-error">PDF non disponibile.</div>';
-      }
-    } else {
-      badge.textContent = 'Schema semplice (SVG)';
-      badge.className = 'schema-complexity-badge badge-svg';
-      document.getElementById('btn-copy-dot').style.display = 'none';
-      content.innerHTML = `<div class="schema-svg-wrap">${sanitizeSvg(data.content)}</div>`;
-    }
+    badge.textContent = 'Schema tecnico (SVG)';
+    badge.className = 'schema-complexity-badge badge-svg';
+    content.innerHTML = `<div class="schema-svg-wrap">${sanitizeSvg(data.content)}</div>`;
   } catch (_) {
     content.innerHTML = '<div class="schema-error">Connessione persa. Verifica il backend.</div>';
   } finally {

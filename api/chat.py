@@ -100,7 +100,7 @@ async def chat(
     if should_search(message):
         search_context = await search_technical_info(message)
 
-    system_prompt = build_system_prompt(is_technical, clarifications_asked, search_context)
+    system_prompt = build_system_prompt(is_technical, clarifications_asked, search_context, messages_for_ai)
 
     await create_message(db, conversation_id, "user", message, image_path=saved_path)
     messages_for_ai.append({"role": "user", "content": message})
